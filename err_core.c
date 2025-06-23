@@ -60,10 +60,10 @@ void EC_poll(EC_instance_t *Instance)
 {
     assert(Instance != NULL);
 
-    uint8_t error;
+    uint64_t error;
     for (uint8_t i; i < Instance->NumberOfErrors; i++)
     {
-        if (!(Instance->ErrorRegs & (1 << i)) && (NULL != Instance->Errors[i].ErrFunc))
+        if (!(Instance->ErrorRegs & ((uint64_t)1 << i)) && (NULL != Instance->Errors[i].ErrFunc))
         {
             error = (Instance->Errors[i].ErrFunc(Instance->Errors[i].HelperNumber));
             if (0 == error)
