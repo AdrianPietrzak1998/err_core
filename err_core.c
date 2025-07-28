@@ -42,15 +42,17 @@ void EC_tick_variable_register(EC_TIME_t *Variable)
 /**
  * Initializes the error control instance.
  */
-void EC_init(EC_instance_t *Instance, EC_error_t *Errors, uint8_t NumberOfErrors)
+void EC_init(EC_instance_t *Instance, const EC_error_t *Errors, EC_timestamps_t *Timestamps, uint8_t NumberOfErrors)
 {
     assert(Instance != NULL);
     assert(Errors != NULL);
+    assert(Timestamps != NULL);
     assert(NumberOfErrors > 0);
     assert(NumberOfErrors <= 64);
 
     Instance->Errors = Errors;
     Instance->NumberOfErrors = NumberOfErrors;
+    Instance->Timestamp = Timestamps;
 }
 
 /**
@@ -68,12 +70,12 @@ void EC_poll(EC_instance_t *Instance)
             error = (Instance->Errors[i].ErrFunc(Instance->Errors[i].HelperNumber));
             if (0 == error)
             {
-                Instance->Errors[i].Timestamp.LastNoErr = EC_GET_TICK;
+            	Instance->Timestamp[i].LastNoErr = EC_GET_TICK;
             }
-            else if (EC_GET_TICK - Instance->Errors[i].Timestamp.LastNoErr >= Instance->Errors[i].TimeToErrorRegister)
+            else if (EC_GET_TICK - Instance->Timestamp[i].LastNoErr >= Instance->Errors[i].TimeToErrorRegister)
             {
                 Instance->ErrorRegs |= error << i;
-                Instance->Errors[i].Timestamp.LastReg = EC_GET_TICK;
+                Instance->Timestamp[i].LastReg = EC_GET_TICK;
             }
         }
     }

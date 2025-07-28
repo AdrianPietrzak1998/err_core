@@ -107,7 +107,7 @@ typedef struct
     uint16_t HelperNumber;
     EC_TIME_t TimeToErrorRegister;
 
-    EC_timestamps_t Timestamp;
+//    EC_timestamps_t Timestamp;
 
 } EC_error_t;
 
@@ -117,12 +117,14 @@ typedef struct
  *
  * ErrorRegs      - Bitfield (up to 64 bits) representing current error states.
  * Errors         - Pointer to an array of error definitions.
+ * Timestamp      - Pointer to an array of timing variables.
  * NumberOfErrors - Size of the Errors array.
  */
 typedef struct
 {
     uint64_t ErrorRegs;
-    EC_error_t *Errors;
+    const EC_error_t *Errors;
+    EC_timestamps_t *Timestamp;
     uint8_t NumberOfErrors;
 } EC_instance_t;
 
@@ -153,9 +155,10 @@ void EC_tick_variable_register(EC_TIME_t *Variable);
  *
  * @param Instance Pointer to the instance to be initialized.
  * @param Errors Pointer to the array of error definitions.
+ * @param Time Stamps Pointer to the array of timing variables.
  * @param NumberOfErrors Number of errors in the array.
  */
-void EC_init(EC_instance_t *Instance, EC_error_t *Errors, uint8_t NumberOfErrors);
+void EC_init(EC_instance_t *Instance, const EC_error_t *Errors, EC_timestamps_t *Timestamps, uint8_t NumberOfErrors);
 
 /**
  * @brief Should be called periodically in the main loop to check and register errors.
