@@ -63,7 +63,7 @@ void EC_poll(EC_instance_t *Instance)
     assert(Instance != NULL);
 
     uint64_t error;
-    for (uint8_t i; i < Instance->NumberOfErrors; i++)
+    for (uint8_t i = 0; i < Instance->NumberOfErrors; i++)
     {
         if (!(Instance->ErrorRegs & ((uint64_t)1 << i)) && (NULL != Instance->Errors[i].ErrFunc))
         {
@@ -119,9 +119,9 @@ EC_err_state_t EC_checkError(EC_instance_t *Instance, uint8_t ErrorNumber)
 
     if (NULL != Instance->Errors[ErrorNumber].ErrFunc)
     {
-        uint8_t error = (Instance->Errors[ErrorNumber].ErrFunc(Instance->Errors[ErrorNumber].HelperNumber));
+    	EC_err_state_t error = (Instance->Errors[ErrorNumber].ErrFunc(Instance->Errors[ErrorNumber].HelperNumber));
 
-        Instance->ErrorRegs |= error << ErrorNumber;
+        Instance->ErrorRegs |= (uint64_t)error << ErrorNumber;
 
         return error;
     }
@@ -135,6 +135,11 @@ EC_err_state_t EC_checkError(EC_instance_t *Instance, uint8_t ErrorNumber)
 void EC_clearErr(EC_instance_t *Instance)
 {
     assert(Instance != NULL);
+
+    for (uint8_t i = 0; i < Instance->NumberOfErrors; i++)
+    {
+    	Instance->Timestamp[i].LastNoErr = EC_GET_TICK;
+    }
 
     Instance->ErrorRegs = 0;
 }
