@@ -42,17 +42,17 @@ void EC_tick_variable_register(EC_TIME_t *Variable)
 /**
  * Initializes the error control instance.
  */
-void EC_init(EC_instance_t *Instance, const EC_error_t *Errors, EC_timestamps_t *Timestamps, uint8_t NumberOfErrors)
+void EC_init(EC_instance_t *Instance, const EC_error_t *Errors, EC_runtimeData_t *RuntimeDataPtr, uint8_t NumberOfErrors)
 {
     assert(Instance != NULL);
     assert(Errors != NULL);
-    assert(Timestamps != NULL);
+    assert(RuntimeDataPtr != NULL);
     assert(NumberOfErrors > 0);
     assert(NumberOfErrors <= 64);
 
     Instance->Errors = Errors;
     Instance->NumberOfErrors = NumberOfErrors;
-    Instance->Timestamp = Timestamps;
+    Instance->RuntimeData = RuntimeDataPtr;
 }
 
 /**
@@ -65,18 +65,35 @@ void EC_poll(EC_instance_t *Instance)
     uint64_t error;
     for (uint8_t i = 0; i < Instance->NumberOfErrors; i++)
     {
-        if (!(Instance->ErrorRegs & ((uint64_t)1 << i)) && (NULL != Instance->Errors[i].ErrFunc))
+        if (!(Instance->ErrorReg & ((uint64_t)1 << i)) && (NULL != Instance->Errors[i].ErrFunc) && (0 == Instance->RuntimeData[i].WarningPending))
         {
             error = (Instance->Errors[i].ErrFunc(Instance->Errors[i].HelperNumber));
             if (0 == error)
             {
-            	Instance->Timestamp[i].LastNoErr = EC_GET_TICK;
+            	Instance->RuntimeData[i].LastNoErr = EC_GET_TICK;
             }
-            else if (EC_GET_TICK - Instance->Timestamp[i].LastNoErr >= Instance->Errors[i].TimeToErrorRegister)
+            else if (EC_GET_TICK - Instance->RuntimeData[i].LastNoErr >= Instance->Errors[i].TimeToErrorRegister)
             {
-                Instance->ErrorRegs |= error << i;
-                Instance->Timestamp[i].LastReg = EC_GET_TICK;
+            	Instance->RuntimeData[i].WarningCnt++;
+            	if (Instance->RuntimeData[i].WarningCnt >= Instance->Errors[i].WarningsToError)
+            	{
+            		Instance->ErrorReg |= error << i;
+            		Instance->WarningReg &= ~((uint64_t)1 << i);
+            		Instance->RuntimeData[i].WarningCnt = 0;
+            	}
+            	else
+            	{
+            		Instance->WarningReg |= ((uint64_t)1 << i);
+            		Instance->RuntimeData[i].WarningPending = 1;
+            	}
+                Instance->RuntimeData[i].LastReg = EC_GET_TICK;
             }
+        }
+        if (EC_GET_TICK - Instance->RuntimeData[i].LastReg >= Instance->Errors[i].TimeToResetWarning)
+        {
+        	Instance->WarningReg &= ~((uint64_t)1 << i);
+        	Instance->RuntimeData[i].WarningCnt = 0;
+        	Instance->RuntimeData[i].WarningPending = 0;
         }
     }
 }
@@ -88,7 +105,7 @@ uint64_t EC_getErrors(EC_instance_t *Instance)
 {
     assert(Instance != NULL);
 
-    return Instance->ErrorRegs;
+    return Instance->ErrorReg;
 }
 
 /**
@@ -99,9 +116,9 @@ EC_err_state_t EC_getOneError(EC_instance_t *Instance, uint8_t ErrorNumber)
     assert(Instance != NULL);
     assert(ErrorNumber <= 64);
 
-    uint64_t mask = 1 << ErrorNumber;
+    uint64_t mask = (uint64_t)1 << ErrorNumber;
 
-    return (Instance->ErrorRegs & mask) ? EC_ERR : EC_NERR;
+    return (Instance->ErrorReg & mask) ? EC_ERR : EC_NERR;
 }
 
 /**
@@ -112,7 +129,7 @@ EC_err_state_t EC_checkError(EC_instance_t *Instance, uint8_t ErrorNumber)
     assert(Instance != NULL);
     assert(ErrorNumber <= 64);
 
-    if (Instance->ErrorRegs & (1 << ErrorNumber))
+    if (Instance->ErrorReg & (1 << ErrorNumber))
     {
         return EC_ERR;
     }
@@ -121,7 +138,7 @@ EC_err_state_t EC_checkError(EC_instance_t *Instance, uint8_t ErrorNumber)
     {
     	EC_err_state_t error = (Instance->Errors[ErrorNumber].ErrFunc(Instance->Errors[ErrorNumber].HelperNumber));
 
-        Instance->ErrorRegs |= (uint64_t)error << ErrorNumber;
+        Instance->ErrorReg |= (uint64_t)error << ErrorNumber;
 
         return error;
     }
@@ -138,8 +155,9 @@ void EC_clearErr(EC_instance_t *Instance)
 
     for (uint8_t i = 0; i < Instance->NumberOfErrors; i++)
     {
-    	Instance->Timestamp[i].LastNoErr = EC_GET_TICK;
+    	Instance->RuntimeData[i].LastNoErr = EC_GET_TICK;
+    	Instance->RuntimeData[i].WarningPending = 0;
     }
 
-    Instance->ErrorRegs = 0;
+    Instance->ErrorReg = 0;
 }

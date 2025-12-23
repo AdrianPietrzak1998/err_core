@@ -90,7 +90,9 @@ typedef struct
 {
     EC_TIME_t LastReg;
     EC_TIME_t LastNoErr;
-} EC_timestamps_t;
+    uint8_t WarningCnt : 7; //TODO desc it
+    uint8_t WarningPending : 1;
+} EC_runtimeData_t;
 
 /**
  * @struct EC_error_t
@@ -106,25 +108,26 @@ typedef struct
     EC_err_state_t (*ErrFunc)(uint16_t HelperNumber);
     uint16_t HelperNumber;
     EC_TIME_t TimeToErrorRegister;
-
-//    EC_timestamps_t Timestamp;
-
+    EC_TIME_t TimeToResetWarning;
+    uint16_t WarningsToError;
 } EC_error_t;
 
 /**
  * @struct EC_instance_t
  * @brief Instance managing a set of error conditions.
  *
- * ErrorRegs      - Bitfield (up to 64 bits) representing current error states.
+ * ErrorReg      - Bitfield (up to 64 bits) representing current error states.
+ * WarningReg    - Bitfield (up to 64 bits) representing current warning states.
  * Errors         - Pointer to an array of error definitions.
- * Timestamp      - Pointer to an array of timing variables.
+ * RuntimeData      - Pointer to an array of timing variables.
  * NumberOfErrors - Size of the Errors array.
  */
 typedef struct
 {
-    uint64_t ErrorRegs;
+    uint64_t ErrorReg;
+    uint64_t WarningReg;
     const EC_error_t *Errors;
-    EC_timestamps_t *Timestamp;
+    EC_runtimeData_t *RuntimeData;
     uint8_t NumberOfErrors;
 } EC_instance_t;
 
@@ -158,7 +161,7 @@ void EC_tick_variable_register(EC_TIME_t *Variable);
  * @param Time Stamps Pointer to the array of timing variables.
  * @param NumberOfErrors Number of errors in the array.
  */
-void EC_init(EC_instance_t *Instance, const EC_error_t *Errors, EC_timestamps_t *Timestamps, uint8_t NumberOfErrors);
+void EC_init(EC_instance_t *Instance, const EC_error_t *Errors, EC_runtimeData_t *Timestamps, uint8_t NumberOfErrors);
 
 /**
  * @brief Should be called periodically in the main loop to check and register errors.
