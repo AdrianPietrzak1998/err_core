@@ -5,6 +5,16 @@ All notable changes to the err_core library will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-04-23
+
+### Fixed
+- Fixed elapsed-time comparisons in `EC_poll()` by explicitly casting tick deltas to `EC_TIME_t` before timeout checks
+- Fixed warning reset timeout handling for configurable time bases and tick wraparound scenarios
+
+### Tests
+- Added wraparound coverage for warning reset timing
+- Unit test suite now includes 23 tests with 100% pass rate
+
 ## [2.0.0] - 2026-01-21
 
 ### ✨ Added
@@ -197,5 +207,6 @@ const EC_error_t errors[] = {
 
 ---
 
+[2.0.1]: https://github.com/AdrianPietrzak1998/err_core/releases/tag/v2.0.1
 [2.0.0]: https://github.com/AdrianPietrzak1998/err_core/releases/tag/v2.0.0
 [1.0.0]: https://github.com/AdrianPietrzak1998/err_core/releases/tag/v1.0.0

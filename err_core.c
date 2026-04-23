@@ -66,37 +66,44 @@ void EC_poll(EC_instance_t *Instance)
     uint64_t error;
     for (uint8_t i = 0; i < Instance->NumberOfErrors; i++)
     {
+        EC_TIME_t current_tick = EC_GET_TICK;
+
         // Always check error state to update LastNoErr (not blocked by WarningPending)
         if (!(Instance->ErrorReg & ((uint64_t)1 << i)) && (NULL != Instance->Errors[i].ErrFunc))
         {
             error = (Instance->Errors[i].ErrFunc(Instance->Errors[i].HelperNumber));
             if (0 == error)
             {
-                Instance->RuntimeData[i].LastNoErr = EC_GET_TICK;
+                Instance->RuntimeData[i].LastNoErr = current_tick;
                 // Clear WarningPending when error disappears (allows fresh detection when it returns)
                 Instance->RuntimeData[i].WarningPending = 0;
             }
-            else if ((0 == Instance->RuntimeData[i].WarningPending) &&
-                     (EC_GET_TICK - Instance->RuntimeData[i].LastNoErr >= Instance->Errors[i].TimeToErrorRegister))
+            else
             {
-                // Error present long enough AND not currently pending
-                Instance->RuntimeData[i].WarningCnt++;
-                if (Instance->RuntimeData[i].WarningCnt >= Instance->Errors[i].WarningsToError)
+                EC_TIME_t no_error_delta = (EC_TIME_t)(current_tick - Instance->RuntimeData[i].LastNoErr);
+
+                if ((0 == Instance->RuntimeData[i].WarningPending) &&
+                    (no_error_delta >= Instance->Errors[i].TimeToErrorRegister))
                 {
-                    Instance->ErrorReg |= error << i;
-                    Instance->WarningReg &= ~((uint64_t)1 << i);
-                    Instance->RuntimeData[i].WarningCnt = 0;
+                    // Error present long enough AND not currently pending
+                    Instance->RuntimeData[i].WarningCnt++;
+                    if (Instance->RuntimeData[i].WarningCnt >= Instance->Errors[i].WarningsToError)
+                    {
+                        Instance->ErrorReg |= error << i;
+                        Instance->WarningReg &= ~((uint64_t)1 << i);
+                        Instance->RuntimeData[i].WarningCnt = 0;
+                    }
+                    else
+                    {
+                        Instance->WarningReg |= ((uint64_t)1 << i);
+                        Instance->RuntimeData[i].WarningPending = 1;
+                    }
+                    Instance->RuntimeData[i].LastReg = current_tick;
                 }
-                else
-                {
-                    Instance->WarningReg |= ((uint64_t)1 << i);
-                    Instance->RuntimeData[i].WarningPending = 1;
-                }
-                Instance->RuntimeData[i].LastReg = EC_GET_TICK;
             }
         }
         // Reset warning after timeout
-        if (EC_GET_TICK - Instance->RuntimeData[i].LastReg >= Instance->Errors[i].TimeToResetWarning)
+        if ((EC_TIME_t)(current_tick - Instance->RuntimeData[i].LastReg) >= Instance->Errors[i].TimeToResetWarning)
         {
             Instance->WarningReg &= ~((uint64_t)1 << i);
             Instance->RuntimeData[i].WarningCnt = 0;
